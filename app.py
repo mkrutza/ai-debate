@@ -300,7 +300,7 @@ with st.sidebar:
 
     # ── Past Debates ──
     st.divider()
-    st.subheader("📚 Past Debates")
+    st.subheader("🔱 Past Debates")
     memories = load_memory()
     if memories:
         st.caption(f"{len(memories)} debate{'s' if len(memories) != 1 else ''} on record")
