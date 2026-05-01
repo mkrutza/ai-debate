@@ -323,7 +323,7 @@ with st.sidebar:
 
 # ── Main UI ────────────────────────────────────────────────────────────────────
 
-st.title("beef.exe")
+st.title("🥩 beef.exe")
 st.caption("Claude · GPT-4 debate your question — then give you the best possible answer.")
 
 topic = st.text_input(
@@ -376,7 +376,7 @@ if run and topic.strip():
         for speaker in SPEAKERS:
             with st.chat_message(speaker["display"], avatar=speaker["avatar"]):
                 placeholder = st.empty()
-                placeholder.markdown("*thinking...*")
+                placeholder.markdown("*marinating...*")
                 try:
                     text = debate_turn(clients, history, topic, speaker)
                 except Exception as e:
@@ -392,7 +392,7 @@ if run and topic.strip():
     for speaker in SPEAKERS:
         with st.chat_message(speaker["display"], avatar=speaker["avatar"]):
             placeholder = st.empty()
-            placeholder.markdown("*synthesizing...*")
+            placeholder.markdown("*slow roasting...*")
             try:
                 text = synthesis_turn(clients, history, topic, speaker, memory_context)
             except Exception as e:
@@ -404,7 +404,7 @@ if run and topic.strip():
     # ── Final answer ──
     st.markdown('<p class="phase-header">✦ Final Answer</p>', unsafe_allow_html=True)
 
-    with st.spinner("Assembling final answer from both perspectives..."):
+    with st.spinner("Searing the final cut..."):
         try:
             answer = get_final_answer(clients, syntheses, topic, memory_context)
         except Exception as e:
@@ -417,7 +417,7 @@ if run and topic.strip():
     )
 
     # ── Save memory ──
-    with st.spinner("Saving key learnings to memory..."):
+    with st.spinner("Storing leftovers..."):
         entry = extract_and_save_memory(clients, topic, answer, history)
 
     if entry:
