@@ -14,6 +14,7 @@ import re
 import anthropic
 import openai
 import streamlit as st
+import streamlit.components.v1 as components
 
 # ── Page config ────────────────────────────────────────────────────────────────
 
@@ -326,10 +327,15 @@ with st.sidebar:
 st.title("🥩 beef.exe")
 st.caption("Claude · GPT-4 debate your question — then give you the best possible answer.")
 
-topic = st.text_input(
+if "topic_input" not in st.session_state:
+    st.session_state["topic_input"] = ""
+
+topic = st.text_area(
     "What's the question?",
     placeholder="e.g. Is remote work better than going to the office?",
     label_visibility="collapsed",
+    key="topic_input",
+    height=80,
 )
 
 col1, col2 = st.columns([3, 1])
@@ -342,6 +348,7 @@ with col1:
     )
 with col2:
     if st.button("Clear", use_container_width=True):
+        st.session_state["topic_input"] = ""
         st.rerun()
 
 # ── Run ────────────────────────────────────────────────────────────────────────
@@ -423,4 +430,53 @@ if run and topic.strip():
     if entry:
         st.success(f"✓ Learned: {entry['consensus']}")
 
-    st.balloons()
+    components.html("""
+    <canvas id="fw" style="position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:99999;"></canvas>
+    <script>
+    const c = document.getElementById('fw');
+    const ctx = c.getContext('2d');
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+    const colors = ['#ff0000','#ff3300','#ff6600','#ff9900','#ffcc00','#ff0044','#cc0000'];
+    let particles = [];
+    function burst(x, y) {
+        for (let i = 0; i < 120; i++) {
+            const angle = (Math.PI * 2 / 120) * i;
+            const speed = Math.random() * 8 + 2;
+            particles.push({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                alpha: 1,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                r: Math.random() * 3 + 1
+            });
+        }
+    }
+    let count = 0;
+    function launch() {
+        burst(Math.random() * c.width, Math.random() * c.height * 0.6);
+        count++;
+        if (count < 8) setTimeout(launch, 350);
+    }
+    function draw() {
+        ctx.clearRect(0, 0, c.width, c.height);
+        particles = particles.filter(p => p.alpha > 0.01);
+        particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.12;
+            p.alpha -= 0.018;
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        if (particles.length > 0 || count < 8) requestAnimationFrame(draw);
+    }
+    launch();
+    draw();
+    </script>
+    """, height=0)
