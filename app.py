@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AI Thunderdome — Streamlit web app
-Claude vs GPT-4 vs Gemini: debate → synthesize → final answer
+Claude vs GPT-4: debate → synthesize → final answer
 With persistent memory: learns key insights from past debates
 
 Run:  streamlit run app.py
@@ -14,8 +14,6 @@ import re
 import anthropic
 import openai
 import streamlit as st
-from google import genai as google_genai
-from google.genai import types as google_types
 
 # ── Page config ────────────────────────────────────────────────────────────────
 
@@ -54,7 +52,6 @@ st.markdown(
 
 CLAUDE_MODEL = "claude-opus-4-7"
 GPT_MODEL = "gpt-4o"
-GEMINI_MODEL = "gemini-2.0-flash"
 
 SPEAKERS = [
     {
@@ -62,21 +59,14 @@ SPEAKERS = [
         "display": "Claude",
         "maker": "Anthropic",
         "avatar": "🟠",
-        "others": ("GPT-4 (OpenAI)", "Gemini (Google)"),
+        "other": "GPT-4 (OpenAI)",
     },
     {
         "key": "GPT-4",
         "display": "GPT-4",
         "maker": "OpenAI",
         "avatar": "🟢",
-        "others": ("Claude (Anthropic)", "Gemini (Google)"),
-    },
-    {
-        "key": "Gemini",
-        "display": "Gemini",
-        "maker": "Google DeepMind",
-        "avatar": "🔵",
-        "others": ("Claude (Anthropic)", "GPT-4 (OpenAI)"),
+        "other": "Claude (Anthropic)",
     },
 ]
 
@@ -143,29 +133,29 @@ def format_memory_context(memories):
 
 DEBATE_SYSTEM = (
     "You are {name}, made by {maker}. "
-    "You're in a three-way debate with {other1} and {other2} on: \"{topic}\". "
-    "Argue your perspective confidently. Push back on the others' weak points. "
+    "You're in a head-to-head debate with {other} on: \"{topic}\". "
+    "Argue your perspective confidently. Push back on your opponent's weak points. "
     "Be sharp and a little competitive. 2–3 punchy paragraphs, no bullet points."
 )
 
 SYNTHESIS_SYSTEM = (
     "You are {name}, made by {maker}. "
-    "You just finished debating {other1} and {other2}. The debate is over — now you're collaborating."
+    "You just finished debating {other}. The debate is over — now you're collaborating."
     "{memory_note}"
 )
 
 SYNTHESIS_USER = (
     "Full debate transcript:\n\n{transcript}\n\n---\n"
     "The debate is done. Contribute your best thinking toward a final answer to: \"{topic}\"\n\n"
-    "Be honest: acknowledge the strongest points made by your opponents, concede anything weaker "
+    "Be honest: acknowledge the strongest points made by your opponent, concede anything weaker "
     "in your own arguments, and distill what you genuinely believe is correct and important. "
-    "2–3 paragraphs. This will be combined with the other AIs' syntheses."
+    "2–3 paragraphs. This will be combined with your opponent's synthesis."
 )
 
 FINAL_SYSTEM = (
-    "You are an expert synthesizer. Three AI systems debated a topic and each contributed a synthesis. "
-    "Produce one definitive, well-reasoned answer by combining the strongest insights from all three. "
-    "Be thorough but clear. Start directly with the answer — no preamble about 'three AIs debated'. "
+    "You are an expert synthesizer. Claude and GPT-4 debated a topic and each contributed a synthesis. "
+    "Produce one definitive, well-reasoned answer by combining the strongest insights from both. "
+    "Be thorough but clear. Start directly with the answer — no preamble about 'two AIs debated'. "
     "Use paragraphs, not bullet points."
 )
 
@@ -173,8 +163,7 @@ FINAL_USER = (
     "Question: \"{topic}\"\n\n"
     "{memory_section}"
     "Claude's synthesis:\n{claude_synth}\n\n"
-    "GPT-4's synthesis:\n{gpt_synth}\n\n"
-    "Gemini's synthesis:\n{gemini_synth}\n\n---\n"
+    "GPT-4's synthesis:\n{gpt_synth}\n\n---\n"
     "Produce the single best answer to the question above. "
     "Resolve any remaining disagreements with your best judgment."
 )
@@ -215,32 +204,19 @@ def call_gpt(clients, system, user, max_tokens=500):
     return resp.choices[0].message.content
 
 
-def call_gemini(clients, system, user, max_tokens=500):
-    resp = clients["gemini"].models.generate_content(
-        model=GEMINI_MODEL,
-        config=google_types.GenerateContentConfig(
-            system_instruction=system,
-            max_output_tokens=max_tokens,
-        ),
-        contents=user,
-    )
-    return resp.text
-
-
-CALLERS = {"Claude": call_claude, "GPT-4": call_gpt, "Gemini": call_gemini}
+CALLERS = {"Claude": call_claude, "GPT-4": call_gpt}
 
 
 def debate_turn(clients, history, topic, speaker):
     system = DEBATE_SYSTEM.format(
         name=speaker["key"],
         maker=speaker["maker"],
-        other1=speaker["others"][0],
-        other2=speaker["others"][1],
+        other=speaker["other"],
         topic=topic,
     )
     if history:
         lines = "\n\n".join(f"[{e['key']}]: {e['text']}" for e in history)
-        user = f"Transcript:\n\n{lines}\n\n---\nYour turn. Respond directly to what the others said."
+        user = f"Transcript:\n\n{lines}\n\n---\nYour turn. Respond directly to what your opponent said."
     else:
         user = f'Open the debate on: "{topic}"'
     return CALLERS[speaker["key"]](clients, system, user, max_tokens=450)
@@ -251,8 +227,7 @@ def synthesis_turn(clients, history, topic, speaker, memory_context=""):
     system = SYNTHESIS_SYSTEM.format(
         name=speaker["key"],
         maker=speaker["maker"],
-        other1=speaker["others"][0],
-        other2=speaker["others"][1],
+        other=speaker["other"],
         memory_note=memory_note,
     )
     transcript = "\n\n".join(f"[{e['key']}]: {e['text']}" for e in history)
@@ -267,7 +242,6 @@ def get_final_answer(clients, syntheses, topic, memory_context=""):
         memory_section=memory_section,
         claude_synth=syntheses["Claude"],
         gpt_synth=syntheses["GPT-4"],
-        gemini_synth=syntheses["Gemini"],
     )
     return call_claude(clients, FINAL_SYSTEM, user, max_tokens=900)
 
@@ -313,17 +287,13 @@ with st.sidebar:
         "OpenAI", type="password",
         placeholder=os.environ.get("OPENAI_API_KEY", "sk-..."),
     )
-    gemini_key = st.text_input(
-        "Gemini", type="password",
-        placeholder=os.environ.get("GEMINI_API_KEY", "AIza..."),
-    )
 
     st.divider()
     st.caption("**How it works**")
     st.caption(
-        "1. AIs argue for N rounds\n"
-        "2. Each AI contributes a synthesis\n"
-        "3. A final answer is assembled from all three\n"
+        "1. Claude and GPT-4 argue for N rounds\n"
+        "2. Each contributes a synthesis\n"
+        "3. A final answer is assembled from both\n"
         "4. Key learnings are saved to memory"
     )
 
@@ -354,7 +324,7 @@ with st.sidebar:
 # ── Main UI ────────────────────────────────────────────────────────────────────
 
 st.title("🥊 AI Thunderdome")
-st.caption("Claude · GPT-4 · Gemini debate your question — then give you the best possible answer.")
+st.caption("Claude · GPT-4 debate your question — then give you the best possible answer.")
 
 topic = st.text_input(
     "What's the question?",
@@ -377,12 +347,10 @@ with col2:
 # ── Run ────────────────────────────────────────────────────────────────────────
 
 if run and topic.strip():
-    # Build clients
     try:
         clients = {
             "claude": anthropic.Anthropic(api_key=anthropic_key or os.environ.get("ANTHROPIC_API_KEY")),
             "gpt": openai.OpenAI(api_key=openai_key or os.environ.get("OPENAI_API_KEY")),
-            "gemini": google_genai.Client(api_key=gemini_key or os.environ.get("GEMINI_API_KEY")),
         }
     except Exception as e:
         st.error(f"Could not initialize API clients: {e}")
@@ -436,7 +404,7 @@ if run and topic.strip():
     # ── Final answer ──
     st.markdown('<p class="phase-header">✦ Final Answer</p>', unsafe_allow_html=True)
 
-    with st.spinner("Assembling final answer from all three perspectives..."):
+    with st.spinner("Assembling final answer from both perspectives..."):
         try:
             answer = get_final_answer(clients, syntheses, topic, memory_context)
         except Exception as e:
