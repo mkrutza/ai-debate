@@ -18,8 +18,8 @@ import streamlit as st
 # ── Page config ────────────────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="AI Thunderdome",
-    page_icon="🥊",
+    page_title="beef.exe",
+    page_icon="🥩",
     layout="centered",
 )
 
@@ -323,7 +323,7 @@ with st.sidebar:
 
 # ── Main UI ────────────────────────────────────────────────────────────────────
 
-st.title("🥊 AI Thunderdome")
+st.title("beef.exe")
 st.caption("Claude · GPT-4 debate your question — then give you the best possible answer.")
 
 topic = st.text_input(
